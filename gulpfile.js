@@ -29,10 +29,20 @@ const p = {
         src: SRC + 'index.html',
         dest: DEST
     },
+    img: {
+        src: SRC + 'img/*.*',
+        dest: DEST + 'img/'
+    },
+    fonts: {
+        src: SRC + 'fonts/**/*.*',
+        dest: DEST + 'fonts/'
+    },
     watch: {
         scss: SRC + 'scss/**/*.scss',
         js: SRC + 'js/main.js',
         html: SRC + 'index.html',
+        img: SRC + 'img/*.*',
+        fonts: SRC + 'fonts/**/*.*'
     }
 
 }
@@ -75,6 +85,20 @@ function js() {
             .pipe(browserSync.stream());
 }
 
+function img() {
+    return src(p.img.src)
+            .pipe(changed(p.img.dest))
+            .pipe(dest(p.img.dest))
+            .pipe(browserSync.stream());
+}
+
+function fonts() {
+    return src(p.fonts.src)
+            .pipe(changed(p.fonts.dest))
+            .pipe(dest(p.fonts.dest))
+            .pipe(browserSync.stream()); 
+}
+
 function server() {
     browserSync.init({
         server: DEST,
@@ -83,17 +107,14 @@ function server() {
     watch(p.watch.scss, scss);
     watch(p.watch.js, js);
     watch(p.watch.html, html);
+    watch(p.watch.img, img);
+    watch(p.watch.fonts, fonts);
 }
 
 function clean() {
     return del([DEST + '*']);
 }
 
-
-exports.build   = series(clean, parallel(js, html, scss));
+exports.build   = series(clean, parallel(js, html, scss, img, fonts));
 exports.clean   = clean;
-exports.dev     = series(parallel(js, html, scss), server);;
-
-
-//task('build', series(clean, parallel(js, html, scss)));
-//task('dev', series(parallel(js, html, scss), trace));
+exports.dev     = series(parallel(js, html, scss, img, fonts), server);;

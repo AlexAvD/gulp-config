@@ -1,15 +1,14 @@
-@import 'test';
+/* helpers */
+@import 'helpers/variables';
+@import 'helpers/functions';
+@import 'helpers/mixins';
 
-a {
-    color: red;
-}
+/* base */
+@import 'base/normalize';
+@import 'base/typography';
 
-body {
-    background: white;
-}
+/* vendors */
+@import 'vendors/bootstrap-grid.scss';
 
-div {
-    display: flex;
-    background: red;
-}
-
+/* pages */
+@import 'pages/home.scss';
