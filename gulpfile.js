@@ -1,120 +1,126 @@
-const {src, dest, parallel, series, watch, task} 
-                    = require('gulp');
-const sass          = require('gulp-sass');
-const autoprefixer  = require('gulp-autoprefixer');
-const cleanCss      = require('gulp-clean-css');
-const babel         = require('gulp-babel');
-const uglify        = require('gulp-uglify');
-const sourcemap     = require('gulp-sourcemaps');
-const changed       = require('gulp-changed');
-const del           = require('del');
-const argv          = require('yargs').argv;
-const gulpif        = require('gulp-if');
-const browserSync   = require('browser-sync').create();
+const { src, dest, parallel, series, watch } = require('gulp');
+const sass = require('gulp-sass');
+const autoprefixer = require('gulp-autoprefixer');
+const cleanCss = require('gulp-clean-css');
+const babel = require('gulp-babel');
+const uglify = require('gulp-uglify');
+const sourcemap = require('gulp-sourcemaps');
+const changed = require('gulp-changed');
+const imagemin = require('gulp-imagemin');
+const del = require('del');
+const browserSync = require('browser-sync').create();
 
+const paths = {
+	input: './src/',
+	output: './dist/',
+	scss: {
+		src: './src/scss/main.scss',
+		dist: './dist/css/'
+	},
+	js: {
+		src: './src/js/**/*.js',
+		dist: './dist/js/'
+	},
+	html: {
+		src: './src/index.html',
+		dist: './dist/'
+	},
+	img: {
+		src: './src/img/**/*.*',
+		dist: './dist/img/'
+	},
+	fonts: {
+		src: './src/fonts/**/*.*',
+		dist: './dist/fonts/'
+	},
+	watch: {
+		scss: './src/scss/**/*.scss',
+		js: './src/js/**/*.js',
+		html: './src/index.html',
+		img: './src/img/**/*.*',
+		fonts: './src/fonts/**/*.*'
+	}
+};
 
-const SRC = './src/'
-const DEST = './build/'
+const styles = () => {
+	return src(paths.scss.src)
+		.pipe(changed(paths.scss.dist, { extension: '.css' }))
+		.pipe(sourcemap.init())
+		.pipe(sass().on('error', sass.logError))
+		.pipe(autoprefixer({ cascade: false }))
+		.pipe(cleanCss({ level: 2 }))
+		.pipe(sourcemap.write('./'))
+		.pipe(dest(paths.scss.dist))
+		.pipe(browserSync.stream());
+};
 
-const p = {
-    scss: {
-        src: SRC + 'scss/main.scss',
-        dest: DEST + 'css/',
-    },
-    js: {
-        src: SRC + 'js/main.js',
-        dest: DEST + 'js/',
-    },
-    html: {
-        src: SRC + 'index.html',
-        dest: DEST
-    },
-    img: {
-        src: SRC + 'img/*.*',
-        dest: DEST + 'img/'
-    },
-    fonts: {
-        src: SRC + 'fonts/**/*.*',
-        dest: DEST + 'fonts/'
-    },
-    watch: {
-        scss: SRC + 'scss/**/*.scss',
-        js: SRC + 'js/main.js',
-        html: SRC + 'index.html',
-        img: SRC + 'img/*.*',
-        fonts: SRC + 'fonts/**/*.*'
-    }
+const scripts = () => {
+	return src(paths.js.src)
+		.pipe(changed(paths.js.dist))
+		.pipe(sourcemap.init())
+		.pipe(babel({ presets: ['@babel/env'] }))
+		.pipe(uglify())
+		.pipe(sourcemap.write('./'))
+		.pipe(dest(paths.js.dist))
+		.pipe(browserSync.stream());
+};
 
-}
+const html = () => {
+	return src(paths.html.src)
+		.pipe(changed(paths.html.dist))
+		.pipe(dest(paths.html.dist))
+		.pipe(browserSync.stream());
+};
 
+const fonts = () => {
+	return src(paths.fonts.src)
+		.pipe(changed(paths.fonts.dist))
+		.pipe(dest(paths.fonts.dist))
+		.pipe(browserSync.stream());
+};
 
-function scss() {
-    return src(p.scss.src)
-            .pipe(changed(p.scss.dest, {extension: '.css'}))
-            .pipe(sourcemap.init())
-            .pipe(sass().on('error', sass.logError))
-            .pipe(autoprefixer({
-                browsers: ['> 0.1%'],
-                cascade: false
-            }))
-            .pipe(cleanCss({
-                level: 2
-            }))
-            .pipe(sourcemap.write('./'))
-            .pipe(dest(p.scss.dest))
-            .pipe(browserSync.stream());
-}
+const images = () => {
+	return src(paths.img.src)
+		.pipe(changed(paths.img.dist))
+		.pipe(imagemin())
+		.pipe(dest(paths.img.dist))
+		.pipe(browserSync.stream());
+};
 
-function html() {
-    return src(p.html.src)
-            .pipe(changed(p.html.dest))
-            .pipe(dest(p.html.dest))
-            .pipe(browserSync.stream());
-}
+const clean = () => {
+	return del(`${paths.output}*`);
+};
 
-function js() {
-    return src(p.js.src)
-            .pipe(changed(p.js.dest))
-            .pipe(sourcemap.init())
-            .pipe(babel({
-                presets: ['@babel/env']
-            }))
-            .pipe(uglify())
-            .pipe(sourcemap.write())
-            .pipe(dest(p.js.dest))
-            .pipe(browserSync.stream());
-}
+const reload = (done) => {
+	browserSync.reload();
+	done();
+};
 
-function img() {
-    return src(p.img.src)
-            .pipe(changed(p.img.dest))
-            .pipe(dest(p.img.dest))
-            .pipe(browserSync.stream());
-}
+const watchFiles = (done) => {
+	watch(paths.watch.html, html);
+	watch(paths.watch.scss, styles);
+	watch(paths.watch.fonts, fonts);
+	watch(paths.watch.img, images);
+	watch(paths.watch.js, scripts);
 
-function fonts() {
-    return src(p.fonts.src)
-            .pipe(changed(p.fonts.dest))
-            .pipe(dest(p.fonts.dest))
-            .pipe(browserSync.stream()); 
-}
+	done();
+};
 
-function server() {
-    browserSync.init({
-        server: DEST,
-        notify: false
-    });
-    watch(p.watch.scss, scss);
-    watch(p.watch.js, js);
-    watch(p.watch.html, html);
-    watch(p.watch.img, img);
-    watch(p.watch.fonts, fonts);
-}
+const server = (done) => {
+	browserSync.init({
+		server: {
+			baseDir: paths.output
+		},
+		notify: false
+	});
 
-function clean() {
-    return del([DEST + '*']);
-}
+	done();
+};
 
-exports.build   = series(clean, parallel(js, html, scss, img, fonts));
-exports.clean   = clean;
-exports.dev     = series(parallel(js, html, scss, img, fonts), server);;
+exports.clean = clean;
+exports.dev = series(
+	clean,
+	parallel(scripts, html, styles, images, fonts),
+	server,
+	watchFiles
+);
