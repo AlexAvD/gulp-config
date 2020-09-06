@@ -4,9 +4,11 @@ const cleancss = require("gulp-clean-css");
 const babel = require("gulp-babel");
 const webpack = require("webpack-stream");
 const rename = require("gulp-rename");
+const mode = require("gulp-mode")();
 const uglify = require("gulp-uglify");
+const newer = require("gulp-newer");
 const sass = require("gulp-sass");
-const sourcemap = require("gulp-sourcemaps");
+const sourceMap = require("gulp-sourcemaps");
 const imagemin = require("gulp-imagemin");
 const del = require("del");
 const browserSync = require("browser-sync").create();
@@ -16,7 +18,7 @@ const OUTPUT_PATH = "./build";
 
 const PATHS = {
   scss: {
-    src: `${INPUT_PATH}/scss/main.scss`,
+    src: `${INPUT_PATH}/scss/index.scss`,
     output: {
       filename: "template.css",
       dir: `${OUTPUT_PATH}/css/`,
@@ -24,11 +26,13 @@ const PATHS = {
   },
   js: {
     src: `${INPUT_PATH}/js/**/*.js`,
-    dist: `${OUTPUT_PATH}/js/`,
-    outputFilename: "template.js",
+    output: {
+      dir: `${OUTPUT_PATH}/js/`,
+      filename: "template.js",
+    },
   },
   html: {
-    src: `${INPUT_PATH}/index.html`,
+    src: `${INPUT_PATH}/*.html`,
     dist: `${OUTPUT_PATH}`,
   },
   img: {
@@ -42,7 +46,7 @@ const PATHS = {
   watch: {
     scss: `${INPUT_PATH}/scss/**/*.scss`,
     js: `${INPUT_PATH}/js/**/*.js`,
-    html: `${INPUT_PATH}/index.html`,
+    html: `${INPUT_PATH}/*.html`,
     img: `${INPUT_PATH}/img/**/*.*`,
     fonts: `${INPUT_PATH}/fonts/**/*.*`,
   },
@@ -50,30 +54,23 @@ const PATHS = {
 
 const styles = () => {
   return src(PATHS.scss.src)
-    .pipe(sourcemap.init())
+    .pipe(mode.development(sourceMap.init()))
     .pipe(sass().on("error", sass.logError))
     .pipe(autoprefixer())
-    .pipe(cleancss({ level: 2, format: "beautify" }))
+    .pipe(mode.production(cleancss({ level: 2, format: "beautify" })))
     .pipe(rename(PATHS.scss.output.filename))
-    .pipe(sourcemap.write("."))
+    .pipe(mode.development(sourceMap.write(".")))
     .pipe(dest(PATHS.scss.output.dir))
     .pipe(browserSync.stream());
 };
 
 const scripts = () => {
   return src(PATHS.js.src)
-    .pipe(sourcemap.init())
-    .pipe(
-      webpack({
-        mode: "none",
-        output: {
-          filename: PATHS.js.outputFilename,
-        },
-      })
-    )
-    .pipe(babel({ presets: ["@babel/env"] }))
-    .pipe(sourcemap.write("./"))
-    .pipe(dest(PATHS.js.dist))
+    .pipe(webpack(require("./webpack.config")))
+    .pipe(mode.development(sourceMap.init()))
+    .pipe(mode.production(uglify()))
+    .pipe(mode.development(sourceMap.write("./")))
+    .pipe(dest(PATHS.js.output.dir))
     .pipe(browserSync.stream());
 };
 
@@ -82,15 +79,18 @@ const html = () => {
 };
 
 const fonts = () => {
-  return src(PATHS.fonts.src).pipe(dest(PATHS.fonts.dist)).pipe(browserSync.stream());
+  return src(PATHS.fonts.src)
+    .pipe(newer(PATHS.fonts.dist))
+    .pipe(dest(PATHS.fonts.dist))
+    .pipe(browserSync.stream());
 };
 
 const images = () => {
-  return src(PATHS.img.src).pipe(imagemin()).pipe(dest(PATHS.img.dist)).pipe(browserSync.stream());
-};
-
-const clean = () => {
-  return del(OUTPUT_PATH);
+  return src(PATHS.img.src)
+    .pipe(newer(PATHS.img.dist))
+    .pipe(imagemin())
+    .pipe(dest(PATHS.img.dist))
+    .pipe(browserSync.stream());
 };
 
 const watchFiles = (done) => {
@@ -114,5 +114,18 @@ const server = (done) => {
   done();
 };
 
+const clean = () => {
+  return del(OUTPUT_PATH);
+};
+
+const build = (done) => {
+  series(clean, parallel(scripts, html, styles, images, fonts))(done);
+};
+
+const dev = (done) => {
+  series(build, server, watchFiles)(done);
+};
+
 exports.clean = clean;
-exports.dev = series(clean, parallel(scripts, html, styles, images, fonts), server, watchFiles);
+exports.build = build;
+exports.dev = dev;

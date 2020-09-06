@@ -1,21 +1,5 @@
-body {
-  background: #fff;
-}
-
-@media (min-width: 300px) {
-  body {
-    background: #000;
-  }
-}
-
-@media (min-width: 400px) {
-  body {
-    background: #fff;
-  }
-}
-
-@media (min-width: 400px) {
-  table {
-    font-size: red;
-  }
+*,
+*:after,
+*:before {
+  box-sizing: border-box;
 }
